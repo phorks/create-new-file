@@ -8,11 +8,17 @@ import { Config } from './config';
 export function activate(context: vscode.ExtensionContext) {
 	let activePicker: Picker | undefined;
 
-	const disposable = vscode.commands.registerCommand('createNewFile.createNewFile', (currentFile: string) => {
-		vscode.window.showInformationMessage(context.workspaceState.keys().join(", "));
+	const disposable = vscode.commands.registerCommand('createNewFile.createNewFile', async () => {
+		if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+			await vscode.window.showErrorMessage("Unable to create a new file. No workspace detected.");
+		}
+
+		const activeEditor = vscode.window.activeTextEditor;
+		const workspacePath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+
 		activePicker = new Picker(
-			path.dirname(vscode.window.activeTextEditor!.document.uri.fsPath),
-			vscode.workspace.workspaceFolders![0].uri.fsPath,
+			activeEditor ? path.dirname(activeEditor.document.uri.fsPath) : workspacePath,
+			workspacePath,
 			new Config(vscode.workspace.getConfiguration("createNewFile")),
 			context
 		);

@@ -58,7 +58,6 @@ export class Picker {
     }
 
     public show() {
-        // this.context.workspaceState.update(Picker.STATE_KEY, this);
         this.qp.show();
     }
 
@@ -73,7 +72,6 @@ export class Picker {
     private onHide() {
         this.qp.dispose();
         this.setSuggestionAvailableContext(false);
-        // this.context.workspaceState.update(Picker.STATE_KEY, undefined);
     }
 
     private async onValueChanged(input: string) {

@@ -49,7 +49,7 @@ export class Picker {
         if (startingPath === workspacePath) {
             this.qp.placeholder = `Add new file (relative to the workspace root)`;
         } else {
-            this.qp.placeholder = `Add new file (relative to '~${config.sep}${config.fixPathSeps(path.relative(workspacePath, startingPath))}'; begin with '~${config.sep}' to indicate the workspace root)`;
+            this.qp.placeholder = `Add new file (relative to '~${config.sep}${config.fixPathSeps(path.relative(workspacePath, startingPath))}'; begin with '~${config.sep}' to start from the workspace root)`;
         }
         this.startingPath = startingPath;
         this.workspacePath = workspacePath;

@@ -1,6 +1,8 @@
 {
   "name": "create-new-file",
   "author": "phorks (Pharaz Fadaei)",
+  "publisher": "phorks",
+  "icon": "assets/phorksc-128.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/phorks/create-new-file"

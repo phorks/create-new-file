@@ -1,0 +1,81 @@
+{
+  "name": "create-new-file",
+  "author": "phorks (Pharaz Fadaei)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phorks/create-new-file"
+  },
+  "displayName": "Create New File",
+  "description": "Create new files and folders",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "createNewFile.createNewFile",
+        "title": "Create New File"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "createNewFile.createNewFile",
+        "key": "shift+f2"
+      },
+      {
+        "command": "createNewFile.acceptSuggestion",
+        "when": "createNewFile.suggestionAvailable",
+        "key": "tab"
+      }
+    ],
+    "configuration": {
+      "title": "Create New File",
+      "properties": {
+        "createNewFile.preferredSeparator": {
+          "type": "string",
+          "enum": [
+            "default",
+            "slash",
+            "backslash"
+          ],
+          "enumItemLabels": [
+            "Default (OS-dependent)",
+            "Slash '/'",
+            "Backslash '\\'"
+          ],
+          "default": "default",
+          "description": "Your preferred path separator (display only)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.13",
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}

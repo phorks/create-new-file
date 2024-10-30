@@ -10,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const disposable = vscode.commands.registerCommand('createNewFile.createNewFile', async () => {
 		if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-			await vscode.window.showErrorMessage("Unable to create a new file. No workspace detected.");
+			await vscode.window.showErrorMessage("Create New File can only be used inside a workspace.");
 		}
 
 		const activeEditor = vscode.window.activeTextEditor;

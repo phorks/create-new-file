@@ -9,7 +9,7 @@
   },
   "displayName": "Create New File",
   "description": "Create new files and folders",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -28,6 +28,7 @@
     "keybindings": [
       {
         "command": "createNewFile.createNewFile",
+        "when": "workbenchState != empty",
         "key": "shift+f2"
       },
       {

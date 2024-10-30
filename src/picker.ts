@@ -93,7 +93,8 @@ export class Picker {
         if (this.config.isAnySep(input.at(-1)!)
             && input.slice(0, -1) === this.oldInput
             && this.lastSuggestionItem
-            && this.pathDirItems.includes(this.lastSuggestionItem!)) {
+            && this.pathDirItems.includes(this.lastSuggestionItem!)
+        ) {
             const oldInput = this.oldInput;
             this.oldInput = input;
             this.qp.value = this.getSuggestionPath(oldInput, this.lastSuggestionItem.label);
@@ -101,12 +102,13 @@ export class Picker {
         }
 
         let dir = this.startingPath;
-        if (input.length > 2 && input.charAt(0) === '~' && this.config.isAnySep(input.charAt(1))) {
-            input = input.substring(2);
-            dir = this.workspacePath;
+        let fullPath: string;
+        if (input.length >= 2 && input.charAt(0) === '~' && this.config.isAnySep(input.charAt(1))) {
+            fullPath = path.join(this.workspacePath, input.substring(2));
+        } else {
+            fullPath = path.join(this.startingPath, input);
         }
 
-        const fullPath = path.join(dir, input);
         const isFolder = this.config.isAnySep(input.at(-1)!);
         this.mainItem = {
             label: '~' + this.config.sep + this.config.fixPathSeps(path.relative(this.workspacePath, fullPath)),

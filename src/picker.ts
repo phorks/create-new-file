@@ -92,17 +92,6 @@ export class Picker {
             return;
         }
 
-        if (this.config.isAnySep(input.at(-1)!)
-            && input.slice(0, -1) === this.oldInput
-            && this.lastSuggestionItem
-            && this.pathDirItems.includes(this.lastSuggestionItem!)
-        ) {
-            const oldInput = this.oldInput;
-            this.oldInput = input;
-            this.qp.value = this.getSuggestionPath(oldInput, this.lastSuggestionItem.label);
-            return;
-        }
-
         const paths = expandPath(input);
 
         let dirItems: PickerItem[] = [];
@@ -245,6 +234,7 @@ export class Picker {
             this.lastSuggestionItem = items[0];
             this.setSuggestionAvailableContext(true);
         } else {
+            this.lastSuggestionItem = undefined;
             this.setSuggestionAvailableContext(false);
         }
     }

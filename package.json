@@ -8,8 +8,8 @@
     "url": "https://github.com/phorks/create-new-file"
   },
   "displayName": "Create New File",
-  "description": "Create new files and folders",
-  "version": "0.0.2",
+  "description": "Create new files and folders quickly",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -25,6 +25,14 @@
         "title": "Create New File"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "createNewFile.createNewFile",
+          "group": "navigation@10"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "createNewFile.createNewFile",

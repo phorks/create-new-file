@@ -19,3 +19,12 @@ export async function fsExists(uri: vscode.Uri): Promise<boolean> {
         return false;
     }
 }
+
+export async function fsStatOrUndefined(uri: vscode.Uri): Promise<vscode.FileStat | undefined> {
+    try {
+        const stat = await vscode.workspace.fs.stat(uri);
+        return stat;
+    } catch {
+        return undefined;
+    }
+}

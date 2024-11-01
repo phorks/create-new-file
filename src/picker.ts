@@ -53,9 +53,9 @@ export class Picker {
         this.qp.onDidChangeActive(this.onActiveChanged.bind(this));
 
         if (startingPath === workspacePath) {
-            this.qp.placeholder = `Add new file (relative to the workspace root)`;
+            this.qp.placeholder = `Create new file (relative to the workspace root)`;
         } else {
-            this.qp.placeholder = `Add new file (relative to '~${config.sep}${config.fixPathSeps(path.relative(workspacePath, startingPath))}'; begin with '~${config.sep}' to start from the workspace root)`;
+            this.qp.placeholder = `Create new file (relative to '~${config.sep}${config.fixPathSeps(path.relative(workspacePath, startingPath))}'; begin with '~${config.sep}' to start from the workspace root)`;
         }
         this.startingPath = startingPath;
         this.workspacePath = workspacePath;
@@ -63,7 +63,9 @@ export class Picker {
         this.context = context;
     }
 
-    public show() {
+    public async show() {
+        this.pathDirItems = await this.createPathDirItems(this.startingPath);
+        this.qp.items = this.pathDirItems;
         this.qp.show();
     }
 
@@ -112,19 +114,7 @@ export class Picker {
 
                 // if the last part is empty, the input has ended with a sep, so the full name is a directory name
                 const dirName = pathParts.at(-1) === '' ? fullPath : path.dirname(fullPath);
-                try {
-                    this.pathDirItems = (await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirName)))
-                        .filter(x => x[1] === vscode.FileType.Directory)
-                        .map(x => <PickerItem>{
-                            label: x[0],
-                            iconPath: vscode.ThemeIcon.Folder,
-                            targetKind: PickerItemTargetKind.Suggestion,
-                            alwaysShow: true,
-                        });
-                } catch {
-                    // the directory does not exists
-                    this.pathDirItems = [];
-                }
+                this.pathDirItems = await this.createPathDirItems(dirName);
             }
 
             if (pathParts.length > 1 && this.pathDirItems.length > 0) {
@@ -153,6 +143,24 @@ export class Picker {
         this.qp.items = [this.mainItem, ...dirItems.length > 0
             ? [<PickerItemSeparator>{ label: "Folders", kind: vscode.QuickPickItemKind.Separator }, ...dirItems]
             : []];
+    }
+
+    private async createPathDirItems(dirName: string) {
+        let pathDirItems: PickerItem[];
+        try {
+            pathDirItems = (await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirName)))
+                .filter(x => x[1] === vscode.FileType.Directory)
+                .map(x => <PickerItem>{
+                    label: x[0],
+                    iconPath: vscode.ThemeIcon.Folder,
+                    targetKind: PickerItemTargetKind.Suggestion,
+                    alwaysShow: true,
+                });
+        } catch {
+            // the directory does not exists
+            pathDirItems = [];
+        }
+        return pathDirItems;
     }
 
     private isFolderPath(singlePath: string) {
@@ -243,8 +251,11 @@ export class Picker {
         vscode.commands.executeCommand("setContext", "createNewFile.suggestionAvailable", isAvailable);
     }
 
-
     private getSuggestionPath(input: string, suggestion: string) {
+        if (input === "") {
+            return suggestion;
+        }
+
         const dir = input.match(/.*[\\\/](?=[^\\\/]*$)/)?.[0];
         return dir + suggestion + this.config.sep;
     }

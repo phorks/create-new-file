@@ -5,20 +5,27 @@ import * as vscode from 'vscode';
 import { QuickPick, QuickPickItem } from "vscode";
 import { Config } from './config';
 import { fsExists } from './helpers';
+import { expandPath } from './pathExpansion';
 
 enum PickerItemTargetKind {
     Suggestion,
-    File,
-    Folder
+    Main
 }
 
-interface PickerItem extends vscode.QuickPickItem {
-    targetKind: PickerItemTargetKind
+interface SuggestionPickerItem extends vscode.QuickPickItem {
+    targetKind: PickerItemTargetKind.Suggestion;
 }
+
+interface MainPickerItem extends vscode.QuickPickItem {
+    targetKind: PickerItemTargetKind.Main;
+    paths: string[];
+}
+
+type PickerItem = SuggestionPickerItem | MainPickerItem;
 
 interface PickerItemSeparator extends vscode.QuickPickItem {
-    kind: vscode.QuickPickItemKind.Separator,
-    label: 'Folders'
+    kind: vscode.QuickPickItemKind.Separator;
+    label: 'Folders';
 }
 
 type PickerItemType = PickerItem | PickerItemSeparator;
@@ -31,12 +38,11 @@ export class Picker {
     private readonly workspacePath: string;
     private readonly config: Config;
     private readonly context: vscode.ExtensionContext;
-    private mainItem: PickerItem | undefined;
+    private mainItem: MainPickerItem | undefined;
     private oldInput: string;
     private pathDirItems: PickerItem[] = [];
     private pathParts: string[] = [];
     private lastSuggestionItem: PickerItem | undefined;
-    private fullPath: string | undefined;
 
     constructor(startingPath: string, workspacePath: string, config: Config, context: vscode.ExtensionContext) {
         this.oldInput = "";
@@ -86,10 +92,6 @@ export class Picker {
             return;
         }
 
-        if (this.oldInput === 'temp/') {
-            console.log("Hi");
-        }
-
         if (this.config.isAnySep(input.at(-1)!)
             && input.slice(0, -1) === this.oldInput
             && this.lastSuggestionItem
@@ -101,54 +103,81 @@ export class Picker {
             return;
         }
 
-        let dir = this.startingPath;
-        let fullPath: string;
-        if (input.length >= 2 && input.charAt(0) === '~' && this.config.isAnySep(input.charAt(1))) {
-            fullPath = path.join(this.workspacePath, input.substring(2));
-        } else {
-            fullPath = path.join(this.startingPath, input);
-        }
+        const paths = expandPath(input);
 
-        const isFolder = this.config.isAnySep(input.at(-1)!);
-        this.mainItem = {
-            label: '~' + this.config.sep + this.config.fixPathSeps(path.relative(this.workspacePath, fullPath)),
-            alwaysShow: true,
-            targetKind: isFolder ? PickerItemTargetKind.Folder : PickerItemTargetKind.File,
-            iconPath: new vscode.ThemeIcon(isFolder ? "new-folder" : "new-file")
-        };
-
-        const pathParts = input.split(/[\\\/]/);
         let dirItems: PickerItem[] = [];
+        if (paths.length === 1) {
+            const fullPath: string = this.getFullPath(input);
 
-        if (pathParts.length > 1
-            && !_.isEqual(pathParts.slice(0, -1), this.pathParts.slice(0, -1))) {
+            this.mainItem = <MainPickerItem>{
+                label: '~' + this.config.sep + this.config.fixPathSeps(path.relative(this.workspacePath, fullPath)),
+                alwaysShow: true,
+                iconPath: new vscode.ThemeIcon(this.isFolderPath(input) ? "new-folder" : "new-file"),
+                paths: [fullPath]
+            };
 
-            // if the last part is empty, the input has ended with a sep, so the full name is a directory name
-            const dirName = pathParts.at(-1) === '' ? fullPath : path.dirname(fullPath);
-            try {
-                this.pathDirItems = (await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirName)))
-                    .filter(x => x[1] === vscode.FileType.Directory)
-                    .map(x => <PickerItem>{
-                        label: x[0],
-                        iconPath: vscode.ThemeIcon.Folder,
-                        targetKind: PickerItemTargetKind.Suggestion,
-                        alwaysShow: true,
-                    });
-            } catch {
-                // the directory does not exists
-                this.pathDirItems = [];
+            const pathParts = input.split(/[\\\/]/);
+
+            if (pathParts.length > 1
+                && !_.isEqual(pathParts.slice(0, -1), this.pathParts.slice(0, -1))) {
+
+                // if the last part is empty, the input has ended with a sep, so the full name is a directory name
+                const dirName = pathParts.at(-1) === '' ? fullPath : path.dirname(fullPath);
+                try {
+                    this.pathDirItems = (await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirName)))
+                        .filter(x => x[1] === vscode.FileType.Directory)
+                        .map(x => <PickerItem>{
+                            label: x[0],
+                            iconPath: vscode.ThemeIcon.Folder,
+                            targetKind: PickerItemTargetKind.Suggestion,
+                            alwaysShow: true,
+                        });
+                } catch {
+                    // the directory does not exists
+                    this.pathDirItems = [];
+                }
             }
+
+            if (pathParts.length > 1 && this.pathDirItems.length > 0) {
+                dirItems = this.pathDirItems.filter(x => x.label.startsWith(pathParts.at(-1)!));
+            }
+        } else {
+            const fullPaths = paths.map(x => this.getFullPath(x));
+            const fullPathOfInput = this.getFullPath(input); // useless, display only
+            const [nFiles, nFolders] = paths.reduce(([nFiles, nFolders], x) => {
+                return this.isFolderPath(x) ? [nFiles, nFolders + 1] : [nFiles + 1, nFolders];
+            }, [0, 0]);
+
+            const details = [
+                ...nFiles > 0 ? [`$(new-file) ${nFiles} files`] : [], ...nFolders > 0 ? [`$(new-folder) ${nFolders} folders`] : []];
+
+            this.mainItem = <MainPickerItem>{
+                label: '~' + this.config.sep + this.config.fixPathSeps(path.relative(this.workspacePath, fullPathOfInput)),
+                alwaysShow: true,
+                iconPath: new vscode.ThemeIcon("files"),
+                paths: fullPaths,
+                description: details.join(', ')
+            };
         }
 
-        if (pathParts.length > 1 && this.pathDirItems.length > 0) {
-            dirItems = this.pathDirItems.filter(x => x.label.startsWith(pathParts.at(-1)!));
-        }
-
-        this.fullPath = fullPath;
         this.oldInput = input;
         this.qp.items = [this.mainItem, ...dirItems.length > 0
             ? [<PickerItemSeparator>{ label: "Folders", kind: vscode.QuickPickItemKind.Separator }, ...dirItems]
             : []];
+    }
+
+    private isFolderPath(singlePath: string) {
+        return this.config.isAnySep(singlePath.at(-1)!);
+    }
+
+    private getFullPath(singlePath: string) {
+        let fullPath: string;
+        if (singlePath.length >= 2 && singlePath.charAt(0) === '~' && this.config.isAnySep(singlePath.charAt(1))) {
+            fullPath = path.join(this.workspacePath, singlePath.substring(2));
+        } else {
+            fullPath = path.join(this.startingPath, singlePath);
+        }
+        return fullPath;
     }
 
     private async onAccepted() {
@@ -163,32 +192,43 @@ export class Picker {
         }
 
         if (selected.targetKind !== PickerItemTargetKind.Suggestion) {
-            if (!this.fullPath) {
+            if (!this.mainItem) {
                 return;
             }
+            const single = this.mainItem.paths.length === 1;
 
-            const fullUri = vscode.Uri.file(this.fullPath);
-            const isFolder = selected.targetKind === PickerItemTargetKind.Folder;
+            for (let fullPath of this.mainItem.paths) {
 
-            if (await fsExists(fullUri)) {
-                vscode.window.showInformationMessage(`The ${isFolder ? "folder" : "file"} already exists.`);
-                this.qp.hide();
-                return;
-            }
+                const fullUri = vscode.Uri.file(fullPath);
+                const isFolder = this.isFolderPath(fullPath);
 
-            if (isFolder) {
-                try {
-                    await vscode.workspace.fs.createDirectory(fullUri);
-                } catch (err) {
-                    await vscode.window.showErrorMessage("Unable to create folder.");
+                if (await fsExists(fullUri)) {
+                    if (single) {
+                        vscode.window.showInformationMessage(`The ${isFolder ? "folder" : "file"} already exists.`);
+                    }
+                    continue;
                 }
-            } else {
-                try {
-                    await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(this.fullPath)));
-                    await vscode.workspace.fs.writeFile(fullUri, new Uint8Array());
-                    await vscode.window.showTextDocument(fullUri, { preview: false, viewColumn: vscode.ViewColumn.Active });
-                } catch (err) {
-                    await vscode.window.showErrorMessage("Unable to create file.");
+
+                if (isFolder) {
+                    try {
+                        await vscode.workspace.fs.createDirectory(fullUri);
+                    } catch (err) {
+                        if (single) {
+                            await vscode.window.showErrorMessage("Unable to create folder.");
+                        }
+                    }
+                } else {
+                    try {
+                        await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(fullPath)));
+                        await vscode.workspace.fs.writeFile(fullUri, new Uint8Array());
+                        if (single) {
+                            await vscode.window.showTextDocument(fullUri, { preview: false, viewColumn: vscode.ViewColumn.Active });
+                        }
+                    } catch (err) {
+                        if (single) {
+                            await vscode.window.showErrorMessage("Unable to create file.");
+                        }
+                    }
                 }
             }
 
